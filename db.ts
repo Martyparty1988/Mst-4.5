@@ -1,5 +1,4 @@
-import { Dexie } from 'dexie';
-import type { Table as DexieTable } from 'dexie';
+import Dexie, { type Table as DexieTable } from 'dexie';
 import { Project, Table, TeamMember, AttendanceRecord, AccessLog, UserProfile } from './types';
 
 export class MSTDatabase extends Dexie {

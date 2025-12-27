@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { Project, Table, TableType, TableStatus, UserProfile, TeamMember } from '../types';
 import CanvasMap from './CanvasMap';
+import { calcProjectStats } from '../logic/powerCalc';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, MapPin, ArrowLeft, CheckCircle, AlertCircle, LayoutList, Trash2, Search, Pencil, X, Check, Lock, Users, User, Briefcase } from 'lucide-react';
+import { Plus, MapPin, ArrowLeft, CheckCircle, AlertCircle, LayoutList, Trash2, Search, Pencil, X, Check, Lock, Users, User, Briefcase, Zap } from 'lucide-react';
 
 const generateId = () => {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -252,10 +253,8 @@ const ProjectManagement: React.FC<Props> = ({ user }) => {
 
             <div className="grid gap-4">
                 {projects?.map(p => {
-                    const progress = p.tableCounts.small + p.tableCounts.medium + p.tableCounts.large > 0 
-                        ? Math.round((0 /* calculate real progress later */) / (p.tableCounts.small + p.tableCounts.medium + p.tableCounts.large) * 100) 
-                        : 0;
-
+                    const stats = calcProjectStats(p.tableCounts);
+                    
                     return (
                         <div key={p.id} onClick={() => { setActiveProject(p); navigateToView('detail'); }} className="glass-panel p-5 active:scale-[0.99] transition-transform cursor-pointer group">
                             <div className="flex justify-between items-start mb-2">
@@ -279,6 +278,12 @@ const ProjectManagement: React.FC<Props> = ({ user }) => {
                                     <span className="text-[10px] uppercase font-bold text-slate-400">Stolů</span>
                                     <span className="font-mono font-bold text-slate-700 text-sm">
                                         {p.tableCounts.small + p.tableCounts.medium + p.tableCounts.large}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase font-bold text-slate-400">Výkon</span>
+                                    <span className="font-mono font-bold text-slate-700 text-sm">
+                                        {stats.mw.toFixed(2)} MW
                                     </span>
                                 </div>
                                 <div className="flex flex-col">
@@ -333,6 +338,10 @@ const ProjectManagement: React.FC<Props> = ({ user }) => {
                       </div>
                   </div>
 
+                  <div className="text-[10px] text-slate-500 bg-white/30 p-2 rounded-lg space-y-1">
+                      <div className="flex justify-between"><span>Výkon (Est):</span> <b>{calcProjectStats({small:form.small, medium:form.medium, large:form.large}).mw.toFixed(2)} MW</b></div>
+                  </div>
+
                   <button 
                     onClick={handleCreateProject}
                     className="glass-button-primary w-full py-3 mt-4 flex justify-center items-center gap-2 shadow-xl">
@@ -381,6 +390,26 @@ const ProjectManagement: React.FC<Props> = ({ user }) => {
                                 </div>
                             </>
                         )}
+                        
+                        {/* Power Specs */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {(() => {
+                                const s = calcProjectStats(activeProject.tableCounts);
+                                return (
+                                    <>
+                                        <span className="inline-flex items-center gap-1 text-[10px] bg-yellow-500/10 text-yellow-800 px-2 py-1 rounded-lg border border-yellow-500/20 font-bold">
+                                            <Zap size={10} /> {s.mw.toFixed(2)} MW
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 text-[10px] bg-slate-500/10 text-slate-700 px-2 py-1 rounded-lg border border-slate-500/20 font-bold">
+                                            {s.panels} panelů
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 text-[10px] bg-slate-500/10 text-slate-700 px-2 py-1 rounded-lg border border-slate-500/20 font-bold">
+                                            {s.strings} stringů
+                                        </span>
+                                    </>
+                                )
+                            })()}
+                        </div>
                     </div>
                   </div>
 

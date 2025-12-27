@@ -9,6 +9,7 @@ import {
     BarChart3, Activity
 } from 'lucide-react';
 import { TeamMember, UserProfile } from '../types';
+import { calcSingleTableKwp } from '../logic/powerCalc';
 
 const generateId = () => {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -182,7 +183,10 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
       // Calculate Installation
       const memberTables = tables.filter(t => t.completedBy === memberId);
       const tableCount = memberTables.length;
-      const kw = Math.round(tableCount * 0.5 * 10) / 10; 
+      
+      // Calculate exact kWp based on table types
+      const kwTotal = memberTables.reduce((sum, table) => sum + calcSingleTableKwp(table.type), 0);
+      const kw = Math.round(kwTotal * 10) / 10;
 
       return { hours, kw, tables: tableCount };
   };
@@ -221,8 +225,9 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
                 const isRelevantUser = isAdmin ? true : t.completedBy === user.id;
                 return isRelevantUser && t.completedAt && t.completedAt >= startOfDay && t.completedAt <= endOfDay;
             });
-            // Assuming 1 table = 0.5 kWp approx (or just count tables)
-            value = Math.round(dailyTables.length * 0.5 * 10) / 10;
+            
+            const dailyKwp = dailyTables.reduce((sum, t) => sum + calcSingleTableKwp(t.type), 0);
+            value = Math.round(dailyKwp * 10) / 10;
         }
 
         data.push({ label: dayLabel, value, fullDate: dateStr });

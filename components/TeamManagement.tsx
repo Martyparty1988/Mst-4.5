@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { 
     UserPlus, Clock, LogIn, LogOut, Search, 
     Briefcase, Calendar, Trophy, Zap, 
     MoreHorizontal, Pencil, Trash2, Phone, X, Check,
-    AlertCircle, Palmtree, Mail, Banknote, Signal, SignalZero
+    AlertCircle, Palmtree, Mail, Banknote, Signal, SignalZero,
+    BarChart3, Activity
 } from 'lucide-react';
 import { TeamMember, UserProfile } from '../types';
 
@@ -25,6 +26,9 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
   const [isEditingMember, setIsEditingMember] = useState<TeamMember | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', rate: 0, role: 'Installer', phone: '', currentProjectId: '' });
+
+  // State for Chart
+  const [chartMetric, setChartMetric] = useState<'hours' | 'kwp'>('kwp');
 
   const isAdmin = user.role === 'admin';
 
@@ -59,6 +63,32 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
       requestNotificationPermission();
   }, []);
 
+  // --- History API for Modal ---
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+        if (showAddModal) {
+            setShowAddModal(false);
+        }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showAddModal]);
+
+  const openModal = () => {
+      window.history.pushState({ modal: 'addTeam' }, '', '');
+      setShowAddModal(true);
+  };
+
+  const closeModal = () => {
+      if (showAddModal) {
+          window.history.back(); // This will trigger popstate which closes modal
+      } else {
+        setShowAddModal(false); // Fallback
+      }
+      setIsEditingMember(null);
+      setForm({ name: '', email: '', rate: 0, role: 'Installer', phone: '', currentProjectId: '' });
+  };
+
 
   // --- Member Actions ---
   const handleSaveMember = async () => {
@@ -85,6 +115,8 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
             isActive: true
         });
     }
+    // Manually close without back() because we want to submit and stay on page usually, 
+    // but consistency says we should pop the modal state.
     closeModal();
   };
 
@@ -104,13 +136,7 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
           phone: m.phone || '',
           currentProjectId: m.currentProjectId || ''
       });
-      setShowAddModal(true);
-  };
-
-  const closeModal = () => {
-      setShowAddModal(false);
-      setIsEditingMember(null);
-      setForm({ name: '', email: '', rate: 0, role: 'Installer', phone: '', currentProjectId: '' });
+      openModal();
   };
 
 
@@ -144,7 +170,7 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
       m.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // --- Performance Stats ---
+  // --- Performance Calculation Helpers ---
   const getMemberStats = (memberId: string) => {
       if (!attendanceAll || !tables) return { hours: 0, kw: 0, tables: 0 };
       
@@ -154,13 +180,57 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
       const hours = Math.round((totalMs / 3600000) * 10) / 10;
 
       // Calculate Installation
-      // Count tables where completedBy matches memberId
       const memberTables = tables.filter(t => t.completedBy === memberId);
       const tableCount = memberTables.length;
       const kw = Math.round(tableCount * 0.5 * 10) / 10; 
 
       return { hours, kw, tables: tableCount };
   };
+
+  // --- Chart Data Memoization ---
+  const chartData = useMemo(() => {
+    if (!tables || !attendanceAll) return [];
+
+    const data = [];
+    const now = new Date();
+    const daysToShow = 7;
+
+    for (let i = daysToShow - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dayLabel = d.toLocaleDateString('cs-CZ', { weekday: 'short' });
+
+        let value = 0;
+
+        if (chartMetric === 'hours') {
+            // Filter attendance for this day
+            const dailyRecords = attendanceAll.filter(a => {
+                // If admin, show everyone. If employee, show only self.
+                const isRelevantUser = isAdmin ? true : a.memberId === user.id;
+                return isRelevantUser && a.date === dateStr && a.type === 'Work' && a.checkOut;
+            });
+            const totalMs = dailyRecords.reduce((acc, r) => acc + ((r.checkOut || 0) - r.checkIn), 0);
+            value = Math.round((totalMs / 3600000) * 10) / 10;
+        } else {
+            // Metric: kWp (Tables)
+            const startOfDay = new Date(dateStr).setHours(0,0,0,0);
+            const endOfDay = new Date(dateStr).setHours(23,59,59,999);
+            
+            const dailyTables = tables.filter(t => {
+                const isRelevantUser = isAdmin ? true : t.completedBy === user.id;
+                return isRelevantUser && t.completedAt && t.completedAt >= startOfDay && t.completedAt <= endOfDay;
+            });
+            // Assuming 1 table = 0.5 kWp approx (or just count tables)
+            value = Math.round(dailyTables.length * 0.5 * 10) / 10;
+        }
+
+        data.push({ label: dayLabel, value, fullDate: dateStr });
+    }
+    return data;
+  }, [tables, attendanceAll, chartMetric, isAdmin, user.id]);
+
+  const maxChartValue = Math.max(...chartData.map(d => d.value), 1); // Avoid div by zero
 
   return (
     <div className="space-y-4">
@@ -202,7 +272,7 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
             </div>
             {isAdmin && (
                 <button 
-                    onClick={() => setShowAddModal(true)}
+                    onClick={openModal}
                     className="glass-button-primary w-12 flex items-center justify-center rounded-xl shadow-lg">
                     <UserPlus size={20} />
                 </button>
@@ -376,59 +446,100 @@ const TeamManagement: React.FC<Props> = ({ user }) => {
       {/* --- PERFORMANCE TAB --- */}
       {tab === 'performance' && (
         <div className="space-y-4 animate-fade-in pb-20">
-             <div className="grid grid-cols-2 gap-3">
-                 {isAdmin ? (
-                    <>
-                     <div className="glass-panel p-4 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border-indigo-200/30">
-                         <div className="text-indigo-800 font-bold text-2xl">{team?.length || 0}</div>
-                         <div className="text-xs text-indigo-600 font-bold uppercase tracking-wider">Aktivní tým</div>
-                     </div>
-                     <div className="glass-panel p-4 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-200/30">
-                         <div className="text-emerald-800 font-bold text-2xl">
-                             {team?.reduce((acc, m) => acc + getMemberStats(m.id).hours, 0).toFixed(0)}h
-                         </div>
-                         <div className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Celkem hodin</div>
-                     </div>
-                    </>
-                 ) : (
-                    <>
-                     <div className="glass-panel p-4 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-200/30">
-                         <div className="text-emerald-800 font-bold text-2xl">
-                             {team && team[0] ? getMemberStats(team[0].id).hours : 0}h
-                         </div>
-                         <div className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Odpracováno</div>
-                     </div>
-                     <div className="glass-panel p-4 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-200/30">
-                         <div className="text-blue-800 font-bold text-2xl">
-                             {team && team[0] ? getMemberStats(team[0].id).tables : 0}
-                         </div>
-                         <div className="text-xs text-blue-600 font-bold uppercase tracking-wider">Instalováno</div>
-                     </div>
-                    </>
-                 )}
+             {/* Chart Controls */}
+             <div className="glass-panel p-2 flex gap-2">
+                 <button 
+                    onClick={() => setChartMetric('kwp')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${chartMetric === 'kwp' ? 'bg-blue-500 text-white shadow-md' : 'text-slate-500 hover:bg-white/40'}`}>
+                    <Zap size={14} /> Výkon (kWp)
+                 </button>
+                 <button 
+                    onClick={() => setChartMetric('hours')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all ${chartMetric === 'hours' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 hover:bg-white/40'}`}>
+                    <Clock size={14} /> Hodiny (h)
+                 </button>
              </div>
 
+             {/* Chart Visual */}
+             <div className="glass-panel p-5 relative overflow-hidden">
+                <div className="flex justify-between items-end mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <Activity size={18} className="text-blue-600"/>
+                            {isAdmin ? 'Výkon Týmu' : 'Můj Výkon'}
+                        </h3>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">Posledních 7 dní</p>
+                    </div>
+                    <div className="text-right">
+                         <div className="text-2xl font-black text-slate-800 leading-none">
+                             {chartData.reduce((acc, d) => acc + d.value, 0).toFixed(1)}
+                             <span className="text-xs font-bold text-slate-400 ml-1">
+                                 {chartMetric === 'hours' ? 'h' : 'kWp'}
+                             </span>
+                         </div>
+                         <div className="text-[10px] text-slate-500 font-bold uppercase">Celkem</div>
+                    </div>
+                </div>
+
+                {/* SVG Bar Chart */}
+                <div className="h-40 w-full flex items-end justify-between gap-2 mt-2">
+                    {chartData.map((d, i) => {
+                        const heightPercent = maxChartValue > 0 ? (d.value / maxChartValue) * 100 : 0;
+                        return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
+                                {/* Tooltip */}
+                                <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] py-1 px-2 rounded-lg pointer-events-none whitespace-nowrap z-10">
+                                    {d.value} {chartMetric === 'hours' ? 'h' : 'kWp'}
+                                </div>
+                                
+                                {/* Bar */}
+                                <div 
+                                    className={`w-full max-w-[30px] rounded-t-lg transition-all duration-500 ease-out border-t border-l border-r border-white/30 shadow-sm ${
+                                        chartMetric === 'kwp' 
+                                        ? 'bg-gradient-to-t from-blue-500/80 to-indigo-400/80 hover:from-blue-500 hover:to-indigo-400' 
+                                        : 'bg-gradient-to-t from-emerald-500/80 to-teal-400/80 hover:from-emerald-500 hover:to-teal-400'
+                                    }`}
+                                    style={{ height: `${Math.max(heightPercent, 2)}%` }} // min 2% height for visuals
+                                ></div>
+                                
+                                {/* Label */}
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{d.label}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+             </div>
+
+             {/* Leaderboard / Details List */}
              <div className="glass-panel p-4">
                  <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                     <Zap size={18} className="text-yellow-500" />
-                     {isAdmin ? 'Top Výkon' : 'Detailní Statistiky'}
+                     <BarChart3 size={18} className="text-slate-400" />
+                     {isAdmin ? 'Žebříček (Celkový)' : 'Statistiky'}
                  </h4>
                  
                  <div className="space-y-4">
                      {team?.map(m => {
                          const stats = getMemberStats(m.id);
+                         const progress = chartMetric === 'kwp' 
+                            ? (stats.kw / Math.max(stats.kw * 1.5, 10)) * 100 // Dynamic dummy max
+                            : (stats.hours / Math.max(stats.hours * 1.5, 40)) * 100;
+
                          return (
                              <div key={m.id} className="space-y-1">
                                  <div className="flex justify-between text-xs font-bold text-slate-600">
                                      <span>{m.name}</span>
-                                     <span>{stats.tables} stolů ({stats.kw} kWp)</span>
+                                     <span>
+                                         {chartMetric === 'kwp' ? `${stats.kw} kWp` : `${stats.hours} h`}
+                                     </span>
                                  </div>
                                  <div className="w-full bg-slate-200/50 rounded-full h-2 overflow-hidden">
-                                     {/* Max dummy value 100 for bar width */}
-                                     <div className="bg-gradient-to-r from-blue-400 to-indigo-500 h-2 rounded-full" style={{ width: `${Math.min(stats.tables * 2, 100)}%` }}></div>
+                                     <div 
+                                        className={`h-2 rounded-full ${chartMetric === 'kwp' ? 'bg-gradient-to-r from-blue-400 to-indigo-500' : 'bg-gradient-to-r from-emerald-400 to-teal-500'}`} 
+                                        style={{ width: `${Math.min(progress, 100)}%` }}>
+                                     </div>
                                  </div>
                                  <div className="text-[10px] text-slate-400 text-right">
-                                     {stats.hours} odpracovaných hodin
+                                     {chartMetric === 'kwp' ? `${stats.tables} stolů` : 'Odpracováno celkem'}
                                  </div>
                              </div>
                          )

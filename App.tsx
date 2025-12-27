@@ -4,7 +4,7 @@ import TeamManagement from './components/TeamManagement';
 import DataManagement from './components/DataManagement';
 import Login from './components/Login';
 import { syncData, fetchDataFromCloud } from './services/googleSheetService';
-import { LayoutGrid, Users, Database, CloudLightning, Loader2 } from 'lucide-react';
+import { LayoutGrid, Users, Database, CloudLightning, Loader2, ArrowLeft } from 'lucide-react';
 import { db } from './db';
 import { UserProfile } from './types';
 
@@ -26,9 +26,41 @@ function App() {
     restoreSession();
   }, []);
 
+  // --- History API Integration for Tabs ---
+  useEffect(() => {
+      const handlePopState = (event: PopStateEvent) => {
+          // If we have state, use it, otherwise default to projects
+          const target = event.state?.page || 'projects';
+          setPage(target);
+      };
+
+      // Initial state replace to ensure we have a base
+      window.history.replaceState({ page: 'projects' }, '', '');
+      
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (newPage: 'projects' | 'team' | 'data') => {
+      if (newPage === page) return;
+      // Push new state to history
+      window.history.pushState({ page: newPage }, '', '');
+      setPage(newPage);
+  };
+
+  const handleGlobalBack = () => {
+      // If we can go back in history, do it. 
+      // In this simple PWA context, if we are not on 'projects', we want to go there.
+      if (page !== 'projects') {
+          window.history.back();
+      }
+  };
+
   const handleLogin = (user: UserProfile) => {
       setCurrentUser(user);
       setPage('projects');
+      // Reset history on login
+      window.history.replaceState({ page: 'projects' }, '', '');
   };
 
   const handleLogout = async () => {
@@ -96,7 +128,14 @@ function App() {
       
       {/* iOS Glass Header */}
       <header className="sticky top-0 z-50 glass-panel border-t-0 border-l-0 border-r-0 rounded-none px-6 py-4 flex justify-between items-center bg-white/20 backdrop-blur-xl shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+           {page !== 'projects' && (
+               <button 
+                onClick={handleGlobalBack}
+                className="p-1 -ml-2 rounded-full hover:bg-white/20 text-white transition-colors">
+                   <ArrowLeft size={20} />
+               </button>
+           )}
            <img 
             src={currentUser.photoUrl} 
             alt="User" 
@@ -122,19 +161,19 @@ function App() {
       <div className="px-4 mt-4 sticky top-[72px] z-40">
         <div className="glass-panel p-1.5 flex justify-between items-center shadow-lg bg-white/30 backdrop-blur-2xl">
            <button 
-              onClick={() => setPage('projects')}
+              onClick={() => navigateTo('projects')}
               className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'projects' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
               <LayoutGrid size={18} strokeWidth={2.5} />
               <span className="text-xs font-bold uppercase tracking-wide">Projekty</span>
            </button>
            <button 
-              onClick={() => setPage('team')}
+              onClick={() => navigateTo('team')}
               className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'team' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
               <Users size={18} strokeWidth={2.5} />
               <span className="text-xs font-bold uppercase tracking-wide">Tým</span>
            </button>
            <button 
-              onClick={() => setPage('data')}
+              onClick={() => navigateTo('data')}
               className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'data' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
               <Database size={18} strokeWidth={2.5} />
               <span className="text-xs font-bold uppercase tracking-wide">Data</span>

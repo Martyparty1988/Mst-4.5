@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta name="theme-color" content="#4158D0" />
+    <meta name="description" content="Martyho Solar Tracker PWA" />
+    <title>MST - Martyho Solar Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+{
+  "imports": {
+    "lz-string": "https://esm.sh/lz-string@1.5.0",
+    "react": "https://esm.sh/react@18.2.0",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "dexie-react-hooks": "https://esm.sh/dexie-react-hooks@1.1.7?external=react,dexie",
+    "dexie": "https://esm.sh/dexie@3.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@0.263.1?external=react",
+    "crypto-js": "https://esm.sh/crypto-js@4.1.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+    <style>
+      /* Fix for iOS momentum scrolling and safe areas */
+      html, body { height: 100%; overscroll-behavior-y: none; }
+      #root { height: 100%; display: flex; flex-direction: column; }
+    </style>
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

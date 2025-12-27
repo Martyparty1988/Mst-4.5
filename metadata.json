@@ -1,0 +1,5 @@
+{
+  "name": "Copy of MST - Martyho Solar Tracker",
+  "description": "Offline-first PWA for solar park construction management with canvas visualization and Google Sheets synchronization.",
+  "requestFramePermissions": []
+}

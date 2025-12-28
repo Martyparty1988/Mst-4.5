@@ -4,14 +4,16 @@ import TeamManagement from './components/TeamManagement';
 import DataManagement from './components/DataManagement';
 import Login from './components/Login';
 import ToolManagement from './components/ToolManagement';
+import Chat from './components/Chat';
+import DailyReports from './components/DailyReports';
 import { syncData, fetchDataFromCloud } from './services/googleSheetService';
-import { LayoutGrid, Users, Database, CloudLightning, Loader2, ArrowLeft, Wrench } from 'lucide-react';
+import { LayoutGrid, Users, Database, CloudLightning, Loader2, ArrowLeft, Wrench, FileText } from 'lucide-react';
 import { db } from './db';
 import { UserProfile } from './types';
 
 function App() {
     const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-    const [page, setPage] = useState<'projects' | 'team' | 'data' | 'tools'>('projects');
+    const [page, setPage] = useState<'projects' | 'team' | 'data' | 'tools' | 'reports'>('projects');
     const [syncStatus, setSyncStatus] = useState('');
     const [isAutoSyncing, setIsAutoSyncing] = useState(false);
 
@@ -42,7 +44,7 @@ function App() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    const navigateTo = (newPage: 'projects' | 'team' | 'data' | 'tools') => {
+    const navigateTo = (newPage: 'projects' | 'team' | 'data' | 'tools' | 'reports') => {
         if (newPage === page) return;
         // Push new state to history
         window.history.pushState({ page: newPage }, '', '');
@@ -160,30 +162,36 @@ function App() {
 
             {/* Main Tab Navigation (Top Segmented Control) */}
             <div className="px-4 mt-4 sticky top-[72px] z-40">
-                <div className="glass-panel p-1.5 flex justify-between items-center shadow-lg bg-white/30 backdrop-blur-2xl">
+                <div className="glass-panel p-1.5 grid grid-cols-5 gap-1 shadow-lg bg-white/30 backdrop-blur-2xl">
                     <button
                         onClick={() => navigateTo('projects')}
-                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'projects' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
+                        className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 ${page === 'projects' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
                         <LayoutGrid size={18} strokeWidth={2.5} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Projekty</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide mt-1">Projekty</span>
                     </button>
                     <button
                         onClick={() => navigateTo('team')}
-                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'team' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
+                        className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 ${page === 'team' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
                         <Users size={18} strokeWidth={2.5} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Tým</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide mt-1">Tým</span>
+                    </button>
+                    <button
+                        onClick={() => navigateTo('reports')}
+                        className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 ${page === 'reports' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
+                        <FileText size={18} strokeWidth={2.5} />
+                        <span className="text-[10px] font-bold uppercase tracking-wide mt-1">Reporty</span>
                     </button>
                     <button
                         onClick={() => navigateTo('data')}
-                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'data' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
+                        className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 ${page === 'data' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
                         <Database size={18} strokeWidth={2.5} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Data</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide mt-1">Data</span>
                     </button>
                     <button
                         onClick={() => navigateTo('tools')}
-                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all duration-300 gap-2 ${page === 'tools' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
+                        className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 ${page === 'tools' ? 'bg-white shadow-md text-blue-600 scale-[1.02]' : 'text-slate-600 hover:bg-white/20'}`}>
                         <Wrench size={18} strokeWidth={2.5} />
-                        <span className="text-xs font-bold uppercase tracking-wide">Nářadí</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide mt-1">Nářadí</span>
                     </button>
                 </div>
             </div>
@@ -192,9 +200,13 @@ function App() {
             <main className="flex-1 p-4 w-full max-w-lg mx-auto mb-6">
                 {page === 'projects' && <ProjectManagement user={currentUser} />}
                 {page === 'team' && <TeamManagement user={currentUser} />}
+                {page === 'reports' && <DailyReports currentUser={currentUser} />}
                 {page === 'data' && <DataManagement user={currentUser} onLogout={handleLogout} />}
                 {page === 'tools' && <ToolManagement user={currentUser} />}
             </main>
+
+            {/* Floating Chat */}
+            <Chat currentUser={currentUser} />
         </div>
     );
 }

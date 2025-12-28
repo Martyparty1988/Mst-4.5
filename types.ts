@@ -105,3 +105,45 @@ export interface SyncPayload {
   tools?: Tool[];
   attendance: AttendanceRecord[];
 }
+
+// Chat System
+export interface ChatMessage {
+  id: string;
+  senderId: string; // User ID
+  senderName: string;
+  message: string;
+  timestamp: number;
+  projectId?: string; // Optional: message related to specific project
+  isRead: boolean;
+}
+
+// Daily Reports
+export interface DailyReport {
+  id: string;
+  date: string; // ISO date YYYY-MM-DD
+  generatedAt: number; // timestamp
+  projectStats: {
+    projectId: string;
+    projectName: string;
+    tablesCompleted: number; // completed today
+    tablesTotal: number;
+    completionPercentage: number;
+    issuesCount: number;
+    activeWorkers: number;
+  }[];
+  teamStats: {
+    totalHoursWorked: number;
+    totalWorkersPresent: number;
+    topPerformers: {
+      memberId: string;
+      memberName: string;
+      tablesCompleted: number;
+    }[];
+  };
+  toolsStats: {
+    totalBorrowed: number;
+    totalAvailable: number;
+    issuesReported: number;
+  };
+  summary: string; // Auto-generated summary text
+}

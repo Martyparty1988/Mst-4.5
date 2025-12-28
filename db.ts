@@ -1,11 +1,12 @@
 import Dexie, { type Table as DexieTable } from 'dexie';
-import { Project, Table, TeamMember, AttendanceRecord, AccessLog, UserProfile } from './types';
+import { Project, Table, TeamMember, AttendanceRecord, AccessLog, UserProfile, Tool } from './types';
 
 export class MSTDatabase extends Dexie {
   projects!: DexieTable<Project, string>;
   projectTables!: DexieTable<Table, string>; // Renamed from 'tables' to avoid conflict
   team!: DexieTable<TeamMember, string>;
   attendance!: DexieTable<AttendanceRecord, string>;
+  tools!: DexieTable<Tool, string>;
   logs!: DexieTable<AccessLog, number>;
   users!: DexieTable<UserProfile, string>;
 
@@ -18,7 +19,8 @@ export class MSTDatabase extends Dexie {
       team: 'id, name, email, currentProjectId',
       attendance: 'id, memberId, date, synced',
       logs: '++id, timestamp, action',
-      users: 'id, email, role'
+      users: 'id, email, role',
+      tools: 'id, status, borrowedBy'
     });
   }
 }

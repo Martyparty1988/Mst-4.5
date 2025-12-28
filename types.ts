@@ -60,6 +60,25 @@ export interface TeamMember {
   notes?: string;
 }
 
+export enum ToolStatus {
+  Available = 'Available',
+  Borrowed = 'Borrowed',
+  Broken = 'Broken',
+  Service = 'Service'
+}
+
+export interface Tool {
+  id: string;
+  name: string;
+  type: string; // e.g., 'Aku vrtačka', 'Klíč', 'Měřák'
+  barcode?: string;
+  status: ToolStatus;
+  borrowedBy?: string; // Member ID
+  borrowedAt?: number;
+  lastService?: number;
+  purchaseDate?: number;
+}
+
 export interface AttendanceRecord {
   id: string; // uuid
   memberId: string;
@@ -71,11 +90,11 @@ export interface AttendanceRecord {
 }
 
 export interface AccessLog {
-    id?: number;
-    action: string;
-    details: string;
-    timestamp: number;
-    user: string;
+  id?: number;
+  action: string;
+  details: string;
+  timestamp: number;
+  user: string;
 }
 
 // Interfaces for Google Sheets Sync
@@ -83,5 +102,6 @@ export interface SyncPayload {
   projects: Project[];
   tables: Table[]; // Only send updated tables in real app to save bandwidth
   team: TeamMember[];
+  tools?: Tool[];
   attendance: AttendanceRecord[];
 }
